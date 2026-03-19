@@ -59,12 +59,28 @@
                         }
 
                         files.forEach(file => {
-                            // filename format is typically: timestamp_matricula_ip.png
+                            // filename format is typically: timestamp_nome_matricula.png
                             const parts = file.split('_');
                             let matricula = "Desconhecida";
+                            let nome = "";
                             let dataHora = "";
 
-                            if (parts.length >= 2) {
+                            // Check if the last part is an IP address to determine the format
+                            // Old format: timestamp_matricula_ip.png (where IP contains dots, e.g. 127.0.0.1.png)
+                            // New format: timestamp_nome_matricula.png (where matricula doesn't have dots other than .png)
+                            const lastPart = parts[parts.length - 1];
+                            const isOldFormat = lastPart.replace('.png', '').includes('.');
+
+                            if (parts.length >= 3 && !isOldFormat) {
+                                nome = parts[1];
+                                matricula = parts[2].replace('.png', '');
+                                const timestamp = parseInt(parts[0]);
+                                if (!isNaN(timestamp)) {
+                                    const date = new Date(timestamp * 1000);
+                                    dataHora = date.toLocaleString('pt-BR');
+                                }
+                            } else if (parts.length >= 2) {
+                                // fallback for old format: timestamp_matricula_ip.png
                                 matricula = parts[1];
                                 const timestamp = parseInt(parts[0]);
                                 if (!isNaN(timestamp)) {
@@ -90,6 +106,15 @@
                             matriculaStrong.textContent = 'Matrícula: ';
                             matriculaEl.appendChild(matriculaStrong);
                             matriculaEl.appendChild(document.createTextNode(matricula));
+
+                            if (nome) {
+                                const nomeEl = document.createElement('p');
+                                const nomeStrong = document.createElement('strong');
+                                nomeStrong.textContent = 'Nome: ';
+                                nomeEl.appendChild(nomeStrong);
+                                nomeEl.appendChild(document.createTextNode(nome));
+                                infoContainer.appendChild(nomeEl);
+                            }
 
                             const dataEl = document.createElement('p');
                             const dataStrong = document.createElement('strong');

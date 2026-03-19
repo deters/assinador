@@ -6,6 +6,8 @@ import os
 import time
 import tarfile
 import io
+import unicodedata
+import re
 
 PORT = 8000
 UPLOAD_DIR = 'uploads'
@@ -69,6 +71,12 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 nome = data.get('nome', 'unknown')
                 image_data = data.get('image', '')
 
+                # Clean name
+                nome_sem_acentos = unicodedata.normalize('NFKD', nome).encode('ASCII', 'ignore').decode('utf-8')
+                nome_limpo = re.sub(r'[^a-zA-Z0-9]', '', nome_sem_acentos)
+                if not nome_limpo:
+                    nome_limpo = 'unknown'
+
                 # Get IP
                 ip = self.client_address[0]
 
@@ -81,7 +89,7 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     encoded = image_data
 
-                file_name = f"{timestamp}_{matricula}_{ip}.png"
+                file_name = f"{timestamp}_{nome_limpo}_{matricula}.png"
                 file_path = os.path.join(UPLOAD_DIR, file_name)
 
                 with open(file_path, "wb") as fh:
