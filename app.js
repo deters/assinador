@@ -166,8 +166,10 @@ const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const thresholdSlider = document.getElementById('thresholdSlider');
+const cropperImage = document.getElementById('cropperImage');
 
 let uploadedImage = null;
+let cropper = null;
 
 imageUpload.addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -180,15 +182,28 @@ imageUpload.addEventListener('change', function(e) {
             // Show preview container
             imagePreviewContainer.classList.remove('hidden');
             previewCanvas.classList.remove('hidden');
+            cropperImage.classList.remove('hidden');
 
-            // Resize preview canvas
-            const maxWidth = imagePreviewContainer.clientWidth - 32; // padding
-            const scale = Math.min(1, maxWidth / uploadedImage.width);
+            cropperImage.src = event.target.result;
 
-            previewCanvas.width = uploadedImage.width * scale;
-            previewCanvas.height = uploadedImage.height * scale;
+            if (cropper) {
+                cropper.destroy();
+            }
 
-            processImage();
+            // The aspect ratio should strictly match the final drawing canvas
+            const targetRatio = canvas.width / canvas.height;
+
+            cropper = new Cropper(cropperImage, {
+                aspectRatio: targetRatio,
+                viewMode: 1, // Restrict the crop box to not exceed the size of the canvas.
+                autoCropArea: 1,
+                ready() {
+                    processImage();
+                },
+                cropend() {
+                    processImage();
+                }
+            });
         };
         uploadedImage.src = event.target.result;
     };
@@ -199,11 +214,41 @@ thresholdSlider.addEventListener('input', () => {
     if (uploadedImage) processImage();
 });
 
-function processImage() {
-    if (!uploadedImage) return;
+const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+const rotateRightBtn = document.getElementById('rotateRightBtn');
 
-    // Draw original scaled image
-    previewCtx.drawImage(uploadedImage, 0, 0, previewCanvas.width, previewCanvas.height);
+rotateLeftBtn.addEventListener('click', () => {
+    if (cropper) {
+        cropper.rotate(-90);
+        processImage();
+    }
+});
+
+rotateRightBtn.addEventListener('click', () => {
+    if (cropper) {
+        cropper.rotate(90);
+        processImage();
+    }
+});
+
+function processImage() {
+    if (!uploadedImage || !cropper) return;
+
+    // Get cropped canvas with black background (for transparent pngs/webps)
+    const croppedCanvas = cropper.getCroppedCanvas({
+        fillColor: '#fff',
+    });
+    if (!croppedCanvas) return;
+
+    // Resize preview canvas to match cropped image proportions but fit in container
+    const maxWidth = imagePreviewContainer.clientWidth - 32; // padding
+    const scale = Math.min(1, maxWidth / croppedCanvas.width);
+
+    previewCanvas.width = croppedCanvas.width * scale;
+    previewCanvas.height = croppedCanvas.height * scale;
+
+    // Draw cropped scaled image to preview canvas
+    previewCtx.drawImage(croppedCanvas, 0, 0, previewCanvas.width, previewCanvas.height);
 
     // Get image data
     const imageData = previewCtx.getImageData(0, 0, previewCanvas.width, previewCanvas.height);
@@ -283,6 +328,10 @@ saveBtn.addEventListener('click', () => {
             imageUpload.value = '';
             imagePreviewContainer.classList.add('hidden');
             uploadedImage = null;
+            if (cropper) {
+                cropper.destroy();
+                cropper = null;
+            }
 
             employeeIdInput.value = '';
             employeeNameInput.value = '';
