@@ -3,8 +3,11 @@ const canvas = document.getElementById('signaturePad');
 const ctx = canvas.getContext('2d');
 const clearBtn = document.getElementById('clearBtn');
 const saveBtn = document.getElementById('saveBtn');
+const employeeIdInput = document.getElementById('employeeId');
 const employeeNameInput = document.getElementById('employeeName');
 const canvasContainer = document.getElementById('canvasContainer');
+const captureSection = document.getElementById('captureSection');
+const warningMessage = document.getElementById('warningMessage');
 
 // State
 let isDrawing = false;
@@ -43,8 +46,28 @@ function resizeCanvas() {
     }
 }
 
-// Initial resize
-window.addEventListener('load', resizeCanvas);
+// Inputs check
+function checkInputs() {
+    const isIdFilled = employeeIdInput.value.trim() !== '';
+    const isNameFilled = employeeNameInput.value.trim() !== '';
+
+    if (isIdFilled && isNameFilled) {
+        captureSection.classList.remove('opacity-50', 'pointer-events-none');
+        warningMessage.classList.add('hidden');
+    } else {
+        captureSection.classList.add('opacity-50', 'pointer-events-none');
+        warningMessage.classList.remove('hidden');
+    }
+}
+
+employeeIdInput.addEventListener('input', checkInputs);
+employeeNameInput.addEventListener('input', checkInputs);
+
+// Initial resize and check
+window.addEventListener('load', () => {
+    resizeCanvas();
+    checkInputs();
+});
 window.addEventListener('resize', resizeCanvas);
 
 // Drawing logic
@@ -219,23 +242,53 @@ extractBtn.addEventListener('click', () => {
 
 // Save logic
 saveBtn.addEventListener('click', () => {
+    const employeeId = employeeIdInput.value.trim();
     const employeeName = employeeNameInput.value.trim();
-    if (!employeeName) {
-        alert('Por favor, digite o nome do funcionário antes de salvar.');
-        employeeNameInput.focus();
+
+    if (!employeeId || !employeeName) {
+        alert('Por favor, informe a matrícula e o nome do funcionário.');
         return;
     }
 
-    // Is canvas blank? Check simple bounding box or just rely on user interaction
-    // Here we just download whatever is on the canvas.
-
     const dataURL = canvas.toDataURL('image/png');
 
-    // Create download link
-    const link = document.createElement('a');
-    link.download = `assinatura_${employeeName.replace(/\s+/g, '_').toLowerCase()}.png`;
-    link.href = dataURL;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    saveBtn.disabled = true;
+    saveBtn.innerText = 'Enviando...';
+    saveBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+    saveBtn.classList.add('bg-gray-400');
+
+    fetch('/upload', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            matricula: employeeId,
+            nome: employeeName,
+            image: dataURL
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Assinatura salva com sucesso!');
+            // Reset state
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            employeeIdInput.value = '';
+            employeeNameInput.value = '';
+            checkInputs();
+        } else {
+            alert('Erro ao salvar: ' + (data.message || 'Desconhecido'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Erro de conexão ao salvar a assinatura.');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerText = 'Salvar e Enviar';
+        saveBtn.classList.remove('bg-gray-400');
+        saveBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+    });
 });
