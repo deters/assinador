@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Assinaturas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
+    <div class="max-w-6xl w-full bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Painel de Administração de Assinaturas</h1>
+            <a href="/download_tar" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors">
+                Baixar Todas (TAR)
+            </a>
+        </div>
+
+        <div id="loading" class="text-center text-gray-500 my-8">
+            Carregando assinaturas...
+        </div>
+
+        <div id="error" class="hidden text-center text-red-500 my-8">
+            Erro ao carregar assinaturas.
+        </div>
+
+        <div id="emptyState" class="hidden text-center text-gray-500 my-8">
+            Nenhuma assinatura encontrada.
+        </div>
+
+        <div id="signaturesGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <!-- As assinaturas serão inseridas aqui dinamicamente -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('signaturesGrid');
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const emptyState = document.getElementById('emptyState');
+
+            fetch('/api/signatures')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erro na rede');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loading.classList.add('hidden');
+
+                    if (data.status === 'success') {
+                        const files = data.files;
+
+                        if (files.length === 0) {
+                            emptyState.classList.remove('hidden');
+                            return;
+                        }
+
+                        files.forEach(file => {
+                            // filename format is typically: timestamp_matricula_ip.png
+                            const parts = file.split('_');
+                            let matricula = "Desconhecida";
+                            let dataHora = "";
+
+                            if (parts.length >= 2) {
+                                matricula = parts[1];
+                                const timestamp = parseInt(parts[0]);
+                                if (!isNaN(timestamp)) {
+                                    const date = new Date(timestamp * 1000);
+                                    dataHora = date.toLocaleString('pt-BR');
+                                }
+                            }
+
+                            const card = document.createElement('div');
+                            card.className = 'border border-gray-200 rounded-lg p-4 bg-gray-50 flex flex-col items-center shadow-sm';
+
+                            const img = document.createElement('img');
+                            img.src = '/uploads/' + file;
+                            img.alt = 'Assinatura ' + matricula;
+                            img.className = 'w-full h-auto object-contain bg-white border border-gray-300 rounded mb-3';
+                            img.style.maxHeight = '150px';
+
+                            const infoContainer = document.createElement('div');
+                            infoContainer.className = 'w-full text-sm text-gray-700 space-y-1';
+
+                            const matriculaEl = document.createElement('p');
+                            const matriculaStrong = document.createElement('strong');
+                            matriculaStrong.textContent = 'Matrícula: ';
+                            matriculaEl.appendChild(matriculaStrong);
+                            matriculaEl.appendChild(document.createTextNode(matricula));
+
+                            const dataEl = document.createElement('p');
+                            const dataStrong = document.createElement('strong');
+                            dataStrong.textContent = 'Data: ';
+                            dataEl.appendChild(dataStrong);
+                            dataEl.appendChild(document.createTextNode(dataHora || 'N/A'));
+
+                            infoContainer.appendChild(matriculaEl);
+                            infoContainer.appendChild(dataEl);
+
+                            card.appendChild(img);
+                            card.appendChild(infoContainer);
+
+                            grid.appendChild(card);
+                        });
+                    } else {
+                        throw new Error(data.message || 'Erro desconhecido');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar assinaturas:', error);
+                    loading.classList.add('hidden');
+                    errorDiv.classList.remove('hidden');
+                });
+        });
+    </script>
+</body>
+</html>
