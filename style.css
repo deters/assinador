@@ -1,0 +1,14 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+#signaturePad {
+    /* Prevent scrolling when touching the canvas on mobile devices */
+    touch-action: none;
+    cursor: crosshair;
+}
+
+#previewCanvas {
+    max-width: 100%;
+}
