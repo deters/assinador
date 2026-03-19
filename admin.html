@@ -120,8 +120,39 @@
                             infoContainer.appendChild(nomeEl);
                             infoContainer.appendChild(dataEl);
 
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.textContent = 'Excluir';
+                            deleteBtn.className = 'w-full mt-3 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors font-semibold';
+                            deleteBtn.addEventListener('click', () => {
+                                if (confirm('Tem certeza que deseja excluir esta assinatura?')) {
+                                    fetch('api/delete', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ matricula: sig.matricula })
+                                    })
+                                    .then(response => response.json())
+                                    .then(result => {
+                                        if (result.status === 'success') {
+                                            card.remove();
+                                            if (grid.children.length === 0) {
+                                                emptyState.classList.remove('hidden');
+                                            }
+                                        } else {
+                                            alert('Erro ao excluir: ' + (result.message || 'Desconhecido'));
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.error('Erro na exclusão:', err);
+                                        alert('Erro de conexão ao excluir.');
+                                    });
+                                }
+                            });
+
                             card.appendChild(img);
                             card.appendChild(infoContainer);
+                            card.appendChild(deleteBtn);
 
                             grid.appendChild(card);
                         });

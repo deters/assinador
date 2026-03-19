@@ -147,6 +147,64 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps(response).encode('utf-8'))
             return
 
+        if self.path == '/api/delete':
+            if not check_auth(self.headers):
+                self.send_auth_required()
+                return
+
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                matricula = data.get('matricula')
+
+                if not matricula:
+                    self.send_response(400)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {'status': 'error', 'message': 'Matrícula não informada.'}
+                    self.wfile.write(json.dumps(response).encode('utf-8'))
+                    return
+
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+
+                # Fetch filename before deleting
+                cursor.execute("SELECT filename FROM signatures WHERE matricula = ?", (matricula,))
+                row = cursor.fetchone()
+
+                if row:
+                    filename = row[0]
+                    file_path = os.path.join(UPLOAD_DIR, filename)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+
+                    cursor.execute("DELETE FROM signatures WHERE matricula = ?", (matricula,))
+                    conn.commit()
+                    conn.close()
+
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {'status': 'success'}
+                    self.wfile.write(json.dumps(response).encode('utf-8'))
+                else:
+                    conn.close()
+                    self.send_response(404)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {'status': 'error', 'message': 'Assinatura não encontrada.'}
+                    self.wfile.write(json.dumps(response).encode('utf-8'))
+
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'error', 'message': str(e)}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+            return
+
         if self.path == '/upload':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
