@@ -4,6 +4,8 @@ import json
 import base64
 import os
 import time
+import tarfile
+import io
 
 PORT = 8000
 UPLOAD_DIR = 'uploads'
@@ -12,6 +14,50 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
 class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/api/signatures':
+            try:
+                files = [f for f in os.listdir(UPLOAD_DIR) if f.endswith('.png')]
+                # Sort by timestamp (filename starts with timestamp)
+                files.sort(reverse=True)
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+
+                response = {'status': 'success', 'files': files}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'error', 'message': str(e)}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+
+        elif self.path == '/download_tar':
+            try:
+                # Create an in-memory tar file
+                tar_stream = io.BytesIO()
+                with tarfile.open(fileobj=tar_stream, mode='w') as tar:
+                    tar.add(UPLOAD_DIR, arcname='signatures')
+
+                tar_stream.seek(0)
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/x-tar')
+                self.send_header('Content-Disposition', 'attachment; filename="signatures.tar"')
+                self.end_headers()
+
+                self.wfile.write(tar_stream.read())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'error', 'message': str(e)}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+        else:
+            super().do_GET()
+
     def do_POST(self):
         if self.path == '/upload':
             content_length = int(self.headers['Content-Length'])
