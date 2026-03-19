@@ -6,26 +6,83 @@ import os
 import time
 import tarfile
 import io
+import sqlite3
 
 PORT = 8000
 UPLOAD_DIR = 'uploads'
+DB_FILE = 'signatures.db'
 
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS signatures (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            matricula TEXT UNIQUE NOT NULL,
+            nome TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            timestamp INTEGER NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def check_auth(headers):
+    auth_header = headers.get('Authorization')
+    if not auth_header:
+        return False
+    if not auth_header.startswith('Basic '):
+        return False
+
+    encoded_credentials = auth_header.split(' ')[1]
+    decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+
+    if ':' not in decoded_credentials:
+        return False
+
+    username, password = decoded_credentials.split(':', 1)
+
+    expected_password = os.environ.get('SENHA_ADMIN')
+    if expected_password is None:
+        return False
+
+    return username == 'admin' and password == expected_password
+
 class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def send_auth_required(self):
+        self.send_response(401)
+        self.send_header('WWW-Authenticate', 'Basic realm="Admin Access"')
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b'<html><body><h1>401 Unauthorized</h1></body></html>')
+
     def do_GET(self):
+        if self.path == '/admin.html' or self.path.startswith('/api/') or self.path == '/download_tar':
+            if not check_auth(self.headers):
+                self.send_auth_required()
+                return
+
         if self.path == '/api/signatures':
             try:
-                files = [f for f in os.listdir(UPLOAD_DIR) if f.endswith('.png')]
-                # Sort by timestamp (filename starts with timestamp)
-                files.sort(reverse=True)
+                conn = sqlite3.connect(DB_FILE)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("SELECT matricula, nome, filename, timestamp FROM signatures ORDER BY timestamp DESC")
+                rows = cursor.fetchall()
+                conn.close()
+
+                signatures = [dict(row) for row in rows]
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
 
-                response = {'status': 'success', 'files': files}
+                response = {'status': 'success', 'signatures': signatures}
                 self.wfile.write(json.dumps(response).encode('utf-8'))
             except Exception as e:
                 self.send_response(500)
@@ -59,6 +116,37 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             super().do_GET()
 
     def do_POST(self):
+        if self.path == '/api/reset':
+            if not check_auth(self.headers):
+                self.send_auth_required()
+                return
+
+            try:
+                # Clear DB
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM signatures")
+                conn.commit()
+                conn.close()
+
+                # Delete files
+                for f in os.listdir(UPLOAD_DIR):
+                    if f.endswith('.png'):
+                        os.remove(os.path.join(UPLOAD_DIR, f))
+
+                self.send_response(200)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'success'}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-type', 'application/json')
+                self.end_headers()
+                response = {'status': 'error', 'message': str(e)}
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+            return
+
         if self.path == '/upload':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
@@ -68,6 +156,19 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 matricula = data.get('matricula', 'unknown')
                 nome = data.get('nome', 'unknown')
                 image_data = data.get('image', '')
+
+                # Check if matricula already exists
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM signatures WHERE matricula = ?", (matricula,))
+                if cursor.fetchone() is not None:
+                    conn.close()
+                    self.send_response(400)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    response = {'status': 'error', 'message': 'Já existe uma assinatura para a matrícula informada.'}
+                    self.wfile.write(json.dumps(response).encode('utf-8'))
+                    return
 
                 # Get IP
                 ip = self.client_address[0]
@@ -86,6 +187,13 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
                 with open(file_path, "wb") as fh:
                     fh.write(base64.b64decode(encoded))
+
+                cursor.execute(
+                    "INSERT INTO signatures (matricula, nome, filename, timestamp) VALUES (?, ?, ?, ?)",
+                    (matricula, nome, file_name, timestamp)
+                )
+                conn.commit()
+                conn.close()
 
                 self.send_response(200)
                 self.send_header('Content-type', 'application/json')

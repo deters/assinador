@@ -9,11 +9,16 @@
 </head>
 <body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
     <div class="max-w-6xl w-full bg-white rounded-lg shadow-md p-6">
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
             <h1 class="text-2xl font-bold text-gray-800">Painel de Administração de Assinaturas</h1>
-            <a href="download_tar" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors">
-                Baixar Todas (TAR)
-            </a>
+            <div class="flex space-x-4">
+                <a href="download_tar" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 transition-colors">
+                    Baixar Todas (TAR)
+                </a>
+                <button id="resetBtn" class="px-4 py-2 bg-red-600 text-white font-semibold rounded-md hover:bg-red-700 transition-colors">
+                    Resetar Base
+                </button>
+            </div>
         </div>
 
         <div id="loading" class="text-center text-gray-500 my-8">
@@ -39,6 +44,25 @@
             const loading = document.getElementById('loading');
             const errorDiv = document.getElementById('error');
             const emptyState = document.getElementById('emptyState');
+            const resetBtn = document.getElementById('resetBtn');
+
+            resetBtn.addEventListener('click', () => {
+                if (confirm('Tem certeza que deseja apagar todas as assinaturas e resetar a base de dados? Esta ação não pode ser desfeita.')) {
+                    fetch('api/reset', { method: 'POST' })
+                        .then(response => {
+                            if (response.ok) {
+                                alert('Base resetada com sucesso.');
+                                window.location.reload();
+                            } else {
+                                alert('Erro ao resetar a base.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro:', error);
+                            alert('Erro de conexão ao resetar a base.');
+                        });
+                }
+            });
 
             fetch('api/signatures')
                 .then(response => {
@@ -51,34 +75,23 @@
                     loading.classList.add('hidden');
 
                     if (data.status === 'success') {
-                        const files = data.files;
+                        const signatures = data.signatures;
 
-                        if (files.length === 0) {
+                        if (!signatures || signatures.length === 0) {
                             emptyState.classList.remove('hidden');
                             return;
                         }
 
-                        files.forEach(file => {
-                            // filename format is typically: timestamp_matricula_ip.png
-                            const parts = file.split('_');
-                            let matricula = "Desconhecida";
-                            let dataHora = "";
-
-                            if (parts.length >= 2) {
-                                matricula = parts[1];
-                                const timestamp = parseInt(parts[0]);
-                                if (!isNaN(timestamp)) {
-                                    const date = new Date(timestamp * 1000);
-                                    dataHora = date.toLocaleString('pt-BR');
-                                }
-                            }
+                        signatures.forEach(sig => {
+                            const date = new Date(sig.timestamp * 1000);
+                            const dataHora = date.toLocaleString('pt-BR');
 
                             const card = document.createElement('div');
                             card.className = 'border border-gray-200 rounded-lg p-4 bg-gray-50 flex flex-col items-center shadow-sm';
 
                             const img = document.createElement('img');
-                            img.src = 'uploads/' + file;
-                            img.alt = 'Assinatura ' + matricula;
+                            img.src = 'uploads/' + sig.filename;
+                            img.alt = 'Assinatura ' + sig.matricula;
                             img.className = 'w-full h-auto object-contain bg-white border border-gray-300 rounded mb-3';
                             img.style.maxHeight = '150px';
 
@@ -89,7 +102,13 @@
                             const matriculaStrong = document.createElement('strong');
                             matriculaStrong.textContent = 'Matrícula: ';
                             matriculaEl.appendChild(matriculaStrong);
-                            matriculaEl.appendChild(document.createTextNode(matricula));
+                            matriculaEl.appendChild(document.createTextNode(sig.matricula));
+
+                            const nomeEl = document.createElement('p');
+                            const nomeStrong = document.createElement('strong');
+                            nomeStrong.textContent = 'Nome: ';
+                            nomeEl.appendChild(nomeStrong);
+                            nomeEl.appendChild(document.createTextNode(sig.nome));
 
                             const dataEl = document.createElement('p');
                             const dataStrong = document.createElement('strong');
@@ -98,6 +117,7 @@
                             dataEl.appendChild(document.createTextNode(dataHora || 'N/A'));
 
                             infoContainer.appendChild(matriculaEl);
+                            infoContainer.appendChild(nomeEl);
                             infoContainer.appendChild(dataEl);
 
                             card.appendChild(img);
