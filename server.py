@@ -93,10 +93,22 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         elif self.path == '/download_tar':
             try:
+                # Fetch filenames from DB
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("SELECT filename FROM signatures")
+                rows = cursor.fetchall()
+                conn.close()
+
+                valid_filenames = {row[0] for row in rows}
+
                 # Create an in-memory tar file
                 tar_stream = io.BytesIO()
                 with tarfile.open(fileobj=tar_stream, mode='w') as tar:
-                    tar.add(UPLOAD_DIR, arcname='signatures')
+                    for filename in valid_filenames:
+                        file_path = os.path.join(UPLOAD_DIR, filename)
+                        if os.path.exists(file_path):
+                            tar.add(file_path, arcname=os.path.join('signatures', filename))
 
                 tar_stream.seek(0)
 
