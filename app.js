@@ -257,7 +257,7 @@ saveBtn.addEventListener('click', () => {
     saveBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
     saveBtn.classList.add('bg-gray-400');
 
-    fetch('/upload', {
+    fetch('upload', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
