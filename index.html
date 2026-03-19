@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coleta de Assinaturas</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center">
@@ -52,6 +53,17 @@
                 <input type="file" id="imageUpload" accept="image/*" capture="environment" class="w-full border border-gray-300 p-2 rounded-md mb-2 bg-white">
 
                 <div id="imagePreviewContainer" class="hidden mt-2 border border-gray-300 rounded-md p-4 bg-gray-50">
+                    <div class="mb-4">
+                        <div class="w-full max-h-64 mb-2">
+                            <img id="cropperImage" class="max-w-full hidden" src="" alt="Imagem para recortar">
+                        </div>
+                        <div class="flex justify-center space-x-2">
+                            <button id="rotateLeftBtn" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">↻ Esquerda</button>
+                            <button id="rotateRightBtn" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Direita ↻</button>
+                        </div>
+                    </div>
+
+                    <p class="text-sm font-medium text-gray-700 mb-1 mt-4">Preview do Recorte (Extraído)</p>
                     <canvas id="previewCanvas" class="w-full max-h-48 object-contain mb-2 border border-gray-200 bg-white hidden"></canvas>
                     <p class="text-sm font-medium text-gray-700 mb-1">Ajuste de Extração (Limiar)</p>
                     <input type="range" id="thresholdSlider" min="0" max="255" value="128" class="w-full mb-4">
@@ -66,6 +78,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
