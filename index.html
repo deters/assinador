@@ -27,28 +27,36 @@
         </div>
 
         <div id="captureSection" class="opacity-50 pointer-events-none transition-opacity duration-300">
-            <div class="mb-6">
-                <h2 class="text-lg font-semibold mb-2 text-gray-700">Opção 1: Assinar na Tela</h2>
-            <div class="border-2 border-dashed border-gray-300 rounded-md bg-gray-50 relative h-64 w-full touch-none" id="canvasContainer">
-                <canvas id="signaturePad" class="absolute top-0 left-0 w-full h-full rounded-md"></canvas>
+            <div class="mb-6 flex justify-center space-x-4">
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="radio" name="signatureMode" value="draw" class="form-radio text-blue-600 h-5 w-5" checked>
+                    <span class="ml-2 text-gray-700 font-medium">Desenhar na Tela</span>
+                </label>
+                <label class="inline-flex items-center cursor-pointer">
+                    <input type="radio" name="signatureMode" value="upload" class="form-radio text-blue-600 h-5 w-5">
+                    <span class="ml-2 text-gray-700 font-medium">Enviar Foto</span>
+                </label>
             </div>
-            <div class="flex justify-end mt-2 space-x-2">
-                <button id="clearBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Limpar</button>
-            </div>
-        </div>
 
-        <div class="mb-6">
-            <h2 class="text-lg font-semibold mb-2 text-gray-700">Opção 2: Foto do Papel</h2>
-            <p class="text-sm text-gray-500 mb-2">Tire uma foto ou faça upload da assinatura em um papel branco.</p>
-            <input type="file" id="imageUpload" accept="image/*" capture="environment" class="w-full border border-gray-300 p-2 rounded-md mb-2 bg-white">
-
-            <div id="imagePreviewContainer" class="hidden mt-2 border border-gray-300 rounded-md p-4 bg-gray-50">
-                <canvas id="previewCanvas" class="w-full max-h-48 object-contain mb-2 border border-gray-200 bg-white hidden"></canvas>
-                <p class="text-sm font-medium text-gray-700 mb-1">Ajuste de Extração (Limiar)</p>
-                <input type="range" id="thresholdSlider" min="0" max="255" value="128" class="w-full mb-4">
-                <button id="extractBtn" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">Aplicar no Canvas Principal</button>
+            <div id="drawSection" class="mb-6">
+                <div class="border-2 border-dashed border-gray-300 rounded-md bg-gray-50 relative h-64 w-full touch-none" id="canvasContainer">
+                    <canvas id="signaturePad" class="absolute top-0 left-0 w-full h-full rounded-md"></canvas>
+                </div>
+                <div class="flex justify-end mt-2 space-x-2">
+                    <button id="clearBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">Limpar</button>
+                </div>
             </div>
-        </div>
+
+            <div id="uploadSection" class="mb-6 hidden">
+                <p class="text-sm text-gray-500 mb-2">Tire uma foto ou faça upload da assinatura em um papel branco.</p>
+                <input type="file" id="imageUpload" accept="image/*" capture="environment" class="w-full border border-gray-300 p-2 rounded-md mb-2 bg-white">
+
+                <div id="imagePreviewContainer" class="hidden mt-2 border border-gray-300 rounded-md p-4 bg-gray-50">
+                    <canvas id="previewCanvas" class="w-full max-h-48 object-contain mb-2 border border-gray-200 bg-white hidden"></canvas>
+                    <p class="text-sm font-medium text-gray-700 mb-1">Ajuste de Extração (Limiar)</p>
+                    <input type="range" id="thresholdSlider" min="0" max="255" value="128" class="w-full mb-4">
+                </div>
+            </div>
 
             <div class="border-t pt-4">
                 <button id="saveBtn" class="w-full px-4 py-3 bg-green-600 text-white font-bold rounded-md hover:bg-green-700 transition-colors text-lg">

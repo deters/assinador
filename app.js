@@ -9,6 +9,24 @@ const canvasContainer = document.getElementById('canvasContainer');
 const captureSection = document.getElementById('captureSection');
 const warningMessage = document.getElementById('warningMessage');
 
+const drawSection = document.getElementById('drawSection');
+const uploadSection = document.getElementById('uploadSection');
+const signatureModeRadios = document.querySelectorAll('input[name="signatureMode"]');
+
+signatureModeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        if (e.target.value === 'draw') {
+            drawSection.classList.remove('hidden');
+            uploadSection.classList.add('hidden');
+            // resize to ensure canvas fits correctly if it was hidden
+            resizeCanvas();
+        } else {
+            drawSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+        }
+    });
+});
+
 // State
 let isDrawing = false;
 let lastX = 0;
@@ -148,7 +166,6 @@ const imagePreviewContainer = document.getElementById('imagePreviewContainer');
 const previewCanvas = document.getElementById('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const thresholdSlider = document.getElementById('thresholdSlider');
-const extractBtn = document.getElementById('extractBtn');
 
 let uploadedImage = null;
 
@@ -217,28 +234,6 @@ function processImage() {
     previewCtx.putImageData(imageData, 0, 0);
 }
 
-extractBtn.addEventListener('click', () => {
-    if (!uploadedImage) return;
-
-    // Clear main canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Calculate dimensions to fit the main canvas while preserving aspect ratio
-    const scale = Math.min(canvas.width / previewCanvas.width, canvas.height / previewCanvas.height);
-    const w = previewCanvas.width * scale;
-    const h = previewCanvas.height * scale;
-    const x = (canvas.width - w) / 2;
-    const y = (canvas.height - h) / 2;
-
-    // Draw the processed image to the main canvas
-    ctx.drawImage(previewCanvas, x, y, w, h);
-
-    // Hide preview
-    imagePreviewContainer.classList.add('hidden');
-    imageUpload.value = ''; // Reset input
-    uploadedImage = null;
-});
-
 
 // Save logic
 saveBtn.addEventListener('click', () => {
@@ -250,7 +245,18 @@ saveBtn.addEventListener('click', () => {
         return;
     }
 
-    const dataURL = canvas.toDataURL('image/png');
+    let dataURL = null;
+    const selectedMode = document.querySelector('input[name="signatureMode"]:checked').value;
+
+    if (selectedMode === 'draw') {
+        dataURL = canvas.toDataURL('image/png');
+    } else if (selectedMode === 'upload') {
+        if (!uploadedImage) {
+            alert('Por favor, faça upload ou tire uma foto da assinatura.');
+            return;
+        }
+        dataURL = previewCanvas.toDataURL('image/png');
+    }
 
     saveBtn.disabled = true;
     saveBtn.innerText = 'Enviando...';
@@ -274,6 +280,10 @@ saveBtn.addEventListener('click', () => {
             alert('Assinatura salva com sucesso!');
             // Reset state
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            imageUpload.value = '';
+            imagePreviewContainer.classList.add('hidden');
+            uploadedImage = null;
+
             employeeIdInput.value = '';
             employeeNameInput.value = '';
             checkInputs();
